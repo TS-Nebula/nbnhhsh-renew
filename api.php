@@ -18,5 +18,4 @@ if ($method == "search")
 {
     $want = $_GET['text'];
     GETDATA($want);
-
 }
