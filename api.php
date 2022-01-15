@@ -1,13 +1,6 @@
 <?php
 $method = $_GET['method'];
-$qwq = 'fbk';
-$collections = 'hhsh';
-function init($collections){
-    $m = new MongoClient();
-    $db = $m->nbnhhsh;
-    $collection = $db->createCollection($collections);
-}
-function GETDATA($word,$collections){
+function GetData($word){
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL,"https://lab.magiconch.com/api/nbnhhsh/guess");
     curl_setopt($ch, CURLOPT_POST, 1);
@@ -16,37 +9,39 @@ function GETDATA($word,$collections){
     $server_output = curl_exec($ch);
     curl_close ($ch);
     $trans_array = json_decode($server_output,true);
-    //print_r($trans_array[0]['trans']);
     $return_array = json_encode($trans_array[0]['trans']);
     echo $return_array;
-    $m = new MongoClient();
-    $db = $m->nbnhhsh;
-    $collection = $db->$collections;
-    $document = array(
-        "text" => $word,
-        "trans" => $return_array
-    );
-    $collection->insert($document);
+    $document = ['_id' => new MongoDB\BSON\ObjectID, 'text' => $word,'trans' => $return_array];
+    $bulk = new MongoDB\Driver\BulkWrite;
+    $_id= $bulk->insert($document);
+    $manager = new MongoDB\Driver\Manager("mongodb://localhost:27017");
+    $writeConcern = new MongoDB\Driver\WriteConcern(MongoDB\Driver\WriteConcern::MAJORITY, 1000);
+    $result = $manager->executeBulkWrite('nbnhhsh.nbnhhsh', $bulk, $writeConcern);
 }
-function GetLocalData($word,$collections){
-    $m = new MongoClient();
-    $db = $m->nbnhhsh;
-    $collection = $db->$collections;
-    $cursor = $collection->find();
+function GetLocalData($word){
+    $m = new MongoDB\Driver\Manager("mongodb://localhost:27017");
+
+    $filter = ['text' => $word];
+    $options = [
+        'projection' => ['_id' => 0],
+        'sort' => ['x' => -1],
+    ];
+    $query = new MongoDB\Driver\Query($filter, $options);
+    $cursor = $m->executeQuery('nbnhhsh.nbnhhsh', $query);
+    $trans_array = '';
     foreach ($cursor as $document) {
-        $trans_array=$document['trans'];
+        $trans_array = $document->trans;
     }
     if($trans_array != ''){
         $return_array=$trans_array;
-        printf($trans_array);
         echo $return_array;
     }
     else{
-        GETDATA($word,$collections);
+        GetData($word);
     }
 }
 if ($method == "search")
 {
     $want = $_GET['text'];
-    GetLocalData($want,$collections);
+    GetLocalData($want);
 }
